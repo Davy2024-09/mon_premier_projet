@@ -34,14 +34,8 @@ Un jeu de casse brique classique écrit en Python avec Pygame.
 - **Score** : Le score augmente à chaque brique détruite.
 - **Fin du jeu** : Si la balle touche le bas de l'écran, le jeu recommence.
 
-## Aperçu
-
-![Capture d'écran du jeu](screenshot.png)
 
 ## Auteur
 
 Davy2024-09
 
-## Licence
-
-Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
