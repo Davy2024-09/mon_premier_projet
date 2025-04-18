@@ -1,184 +1,108 @@
-import pygame
-import sys
+from kivy.app import App
+from kivy.uix.widget import Widget
+from kivy.uix.label import Label
+from kivy.properties import NumericProperty, ObjectProperty
+from kivy.clock import Clock
+from kivy.graphics import Rectangle, Color
 
-# Initialisation de pygame
-pygame.init()
+class Brique(Widget):
+    pass
 
-# Paramètres de la fenêtre
-LARGEUR, HAUTEUR = 800, 600
-fenetre = pygame.display.set_mode((LARGEUR, HAUTEUR))
-pygame.display.set_caption("Casse-Briques")
+class Balle(Widget):
+    vx = NumericProperty(5)
+    vy = NumericProperty(-5)
 
-# Couleurs
-BLANC = (255, 255, 255)
-ROUGE = (255, 0, 0)
-BLEU = (0, 0, 255)
-VERT = (0, 255, 0)
-NOIR = (0, 0, 0)
-JAUNE = (255, 255, 0)
+    def move(self):
+        self.x += self.vx
+        self.y += self.vy
 
-# Horloge pour contrôler le framerate
-horloge = pygame.time.Clock()
+class Raquette(Widget):
+    pass
 
-# Paramètres de la raquette
-LARGEUR_RAQUETTE = 300
-HAUTEUR_RAQUETTE = 20
-RAQUETTE_VITESSE = 10
-raquette = pygame.Rect(LARGEUR // 2 - LARGEUR_RAQUETTE // 2, HAUTEUR - 50, LARGEUR_RAQUETTE, HAUTEUR_RAQUETTE)
-
-# Paramètres de la balle
-RAYON_BALLE = 10
-balle = pygame.Rect(LARGEUR // 2 - RAYON_BALLE, HAUTEUR // 2 - RAYON_BALLE, RAYON_BALLE * 2, RAYON_BALLE * 2)
-BALLE_VITESSE_X, BALLE_VITESSE_Y = 5, -5
-
-# Score
-score = 0
-police = pygame.font.Font(None, 36)
-
-# Niveaux
-niveaux = [
-    # Niveau 1
-    [
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-    ],
-    # Niveau 2
-    [
-        [1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
-        [0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
-        [1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
-        [0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
-        [1, 0, 1, 0, 1, 0, 1, 0, 1, 0]
-    ],
-    # Niveau 3
-    [
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 1, 1, 1, 1, 1, 1, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-    ]
-]
-niveau_actuel = 0
-briques = []
-
-# Fonction pour créer les briques du niveau actuel
-def creer_briques():
-    global briques
+class CasseBriquesGame(Widget):
+    balle = ObjectProperty(None)
+    raquette = ObjectProperty(None)
+    score = NumericProperty(0)
+    niveau = NumericProperty(1)
     briques = []
-    for i in range(len(niveaux[niveau_actuel])):
-        for j in range(len(niveaux[niveau_actuel][i])):
-            if niveaux[niveau_actuel][i][j] == 1:
-                brique = pygame.Rect(j * (LARGEUR_BRIQUE + ESPACEMENT) + ESPACEMENT, 
-                                 i * (HAUTEUR_BRIQUE + ESPACEMENT) + ESPACEMENT, 
-                                 LARGEUR_BRIQUE, HAUTEUR_BRIQUE)
-                briques.append(brique)
 
-# Créer les briques du premier niveau
-LARGEUR_BRIQUE = 75
-HAUTEUR_BRIQUE = 30
-ESPACEMENT = 5
-creer_briques()
+    # Modèles avec beaucoup plus de briques
+    niveaux = [
+        [[1] * 10 for _ in range(5)],  # Niveau 1 : grille pleine de briques
+        [[(i + j) % 2 for j in range(10)] for i in range(5)],  # Niveau 2 : motif alterné
+        [[1 if i == j or i + j == 9 else 0 for j in range(10)] for i in range(5)],  # Niveau 3 : diagonales
+        [[1] * 10] * 7,  # Niveau 4 : grille dense
+        [[(i * j) % 3 == 0 for j in range(10)] for i in range(6)],  # Niveau 5 : motif complexe
+        [[1] * (10 - i) + [0] * i for i in range(10)],  # Niveau 6 : pyramide inversée
+        [[0 if (i + j) % 3 == 0 else 1 for j in range(10)] for i in range(6)],  # Niveau 7 : losanges
+        [[1 if j < i else 0 for j in range(10)] for i in range(10)],  # Niveau 8 : triangle
+    ]
 
-# Menu de démarrage
-def afficher_menu():
-    fenetre.fill(NOIR)
-    texte_titre = police.render("Casse-Briques", True, BLANC)
-    texte_start = police.render("Appuyez sur ESPACE pour commencer", True, BLANC)
-    fenetre.blit(texte_titre, (LARGEUR // 2 - texte_titre.get_width() // 2, HAUTEUR // 3))
-    fenetre.blit(texte_start, (LARGEUR // 2 - texte_start.get_width() // 2, HAUTEUR // 2))
-    pygame.display.flip()
+    def reset_game(self):
+        self.balle.center = self.center
+        self.raquette.center_x = self.center_x
+        self.generate_briques(self.niveau)
+        self.niveau += 1
+        if self.niveau > len(self.niveaux):
+            self.niveau = 1
 
-# Fonction principale du jeu
-def jeu():
-    global BALLE_VITESSE_X, BALLE_VITESSE_Y, score, niveau_actuel
+    def generate_briques(self, niveau):
+        # Nettoyage de l'ancien canvas et suppression des briques
+        self.briques.clear()
+        self.canvas.clear()
 
-    en_jeu = False
-    while True:
-        if not en_jeu:
-            afficher_menu()
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_SPACE:
-                        en_jeu = True
-            continue
+        # Dimensions ajustées pour plus de briques
+        largeur_brique = self.width / 10
+        hauteur_brique = 25
 
-        # Gestion des événements
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
+        # Dessiner les briques basées sur le modèle du niveau
+        for i, ligne in enumerate(self.niveaux[niveau - 1]):
+            for j, valeur in enumerate(ligne):
+                if valeur == 1:
+                    with self.canvas:
+                        Color(0, 1, 0, 1)  # Vert pour les briques
+                        x = j * largeur_brique
+                        y = self.height - (i + 1) * hauteur_brique
+                        rect = Rectangle(pos=(x, y), size=(largeur_brique, hauteur_brique))
+                        self.briques.append(rect)
 
-        # Déplacement de la raquette
-        touches = pygame.key.get_pressed()
-        if touches[pygame.K_LEFT] and raquette.left > 0:
-            raquette.move_ip(-RAQUETTE_VITESSE, 0)
-        if touches[pygame.K_RIGHT] and raquette.right < LARGEUR:
-            raquette.move_ip(RAQUETTE_VITESSE, 0)
+    def update(self, dt):
+        self.balle.move()
 
-        # Déplacement de la balle
-        balle.move_ip(BALLE_VITESSE_X, BALLE_VITESSE_Y)
+        # Collision avec les murs
+        if self.balle.x <= 0 or self.balle.right >= self.width:
+            self.balle.vx *= -1
+        if self.balle.y >= self.height:
+            self.balle.vy *= -1
 
-        # Collisions avec les murs
-        if balle.left <= 0 or balle.right >= LARGEUR:
-            BALLE_VITESSE_X *= -1
-        if balle.top <= 0:
-            BALLE_VITESSE_Y *= -1
-        if balle.bottom >= HAUTEUR:
-            # Perdu : réinitialiser la balle et la raquette
-            balle.x, balle.y = LARGEUR // 2 - RAYON_BALLE, HAUTEUR // 2 - RAYON_BALLE
-            raquette.x = LARGEUR // 2 - LARGEUR_RAQUETTE // 2
-            BALLE_VITESSE_X, BALLE_VITESSE_Y = 5, -5
-            en_jeu = False
-            score = 0
-            niveau_actuel = 0
-            creer_briques()
+        # Si la balle tombe en bas, réinitialiser
+        if self.balle.y <= 0:
+            self.reset_game()
 
         # Collision avec la raquette
-        if balle.colliderect(raquette):
-            BALLE_VITESSE_Y *= -1
+        if self.balle.collide_widget(self.raquette):
+            self.balle.vy *= -1
 
         # Collision avec les briques
-        for brique in briques[:]:
-            if balle.colliderect(brique):
-                BALLE_VITESSE_Y *= -1
-                briques.remove(brique)
-                score += 10
+        for brique in self.briques[:]:
+            if self.balle.x < brique.pos[0] + largeur_brique and \
+               self.balle.x + self.balle.width > brique.pos[0] and \
+               self.balle.y < brique.pos[1] + hauteur_brique and \
+               self.balle.y + self.balle.height > brique.pos[1]:
+                self.briques.remove(brique)
+                self.canvas.remove(brique)
+                self.balle.vy *= -1
+                self.score += 10
 
-        # Passer au niveau suivant si toutes les briques sont détruites
-        if not briques:
-            niveau_actuel += 1
-            if niveau_actuel >= len(niveaux):
-                niveau_actuel = 0
-            creer_briques()
-            balle.x, balle.y = LARGEUR // 2 - RAYON_BALLE, HAUTEUR // 2 - RAYON_BALLE
-            raquette.x = LARGEUR // 2 - LARGEUR_RAQUETTE // 2
-            BALLE_VITESSE_X, BALLE_VITESSE_Y = 5, -5
+    def on_touch_move(self, touch):
+        self.raquette.center_x = touch.x
 
-        # Affichage
-        fenetre.fill(NOIR)
-        pygame.draw.rect(fenetre, BLEU, raquette)
-        pygame.draw.ellipse(fenetre, ROUGE, balle)
-        for brique in briques:
-            pygame.draw.rect(fenetre, VERT, brique)
+class CasseBriquesApp(App):
+    def build(self):
+        game = CasseBriquesGame()
+        game.generate_briques(1)
+        Clock.schedule_interval(game.update, 1.0 / 60.0)
+        return game
 
-        # Afficher le score
-        texte_score = police.render(f"Score : {score}", True, BLANC)
-        fenetre.blit(texte_score, (10, 10))
-
-        # Afficher le niveau
-        texte_niveau = police.render(f"Niveau : {niveau_actuel + 1}", True, BLANC)
-        fenetre.blit(texte_niveau, (LARGEUR - texte_niveau.get_width() - 10, 10))
-
-        # Mise à jour de l'affichage
-        pygame.display.flip()
-        horloge.tick(60)  # Limite à 60 FPS
-
-# Lancer le jeu
-jeu()
+if __name__ == '__main__':
+    CasseBriquesApp().run()
